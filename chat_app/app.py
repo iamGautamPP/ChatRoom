@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Request, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Request, status, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from auth.auth import router, verify_jwt
@@ -45,21 +45,24 @@ async def home(request:Request):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, username: str = Query(...), token: str = Query(...)):
-    user = verify_jwt(token)
-    if user.username != username:
+    try:
+        user = verify_jwt(token)
+        if user.username != username:
+            print("token verified in websocket")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    
+        await manager.connect(websocket)
+        await manager.send_personal_message("You have joined the chat", websocket)
+        await manager.broadcast(f"{username} joined the chat", websocket)
+        while True:
+            try:
+                data = await websocket.receive_text()
+                await manager.send_personal_message(f"{username} : {data}", websocket)
+                await manager.broadcast(f"🔹{username} : {data}", websocket)
+            except WebSocketDisconnect:
+                await manager.broadcast(f"🔸{username} left the chat.", websocket)
+                await manager.disconnect(websocket)
+                return RedirectResponse("/")
+    except HTTPException:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-  
-    await manager.connect(websocket)
-    await manager.send_personal_message("You have joined the chat", websocket)
-    await manager.broadcast(f"{username} joined the chat", websocket)
-    while True:
-        try:
-            data = await websocket.receive_text()
-            await manager.send_personal_message(f"{username} : {data}", websocket)
-            await manager.broadcast(f"🔹{username} : {data}", websocket)
-        except WebSocketDisconnect:
-            await manager.broadcast(f"🔸{username} left the chat.", websocket)
-            await manager.disconnect(websocket)
-            return RedirectResponse("/")
-

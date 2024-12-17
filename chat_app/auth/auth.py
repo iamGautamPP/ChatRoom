@@ -41,7 +41,6 @@ async def login_user(data:UserLogin)->Token:
     else:
         token = create_access_token(user.username)
     return Token(access_token=token, token_type="bearer")
-    # return {"access_token":token, "token_type":"bearer"}
 
 def authenticate(username:str, password:str):
     if not db.user_exists(username):
@@ -63,9 +62,10 @@ def create_access_token(username:str):
 def verify_jwt(token:str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if "username" not in payload:
+        if "sub" not in payload:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing User information")
-        user = db.users[payload.username]
+        username = payload['sub']
+        user = db.users[username]
         return User(username=user.get("username"), email=user.get("email"))
     except JWTError as e:
         raise HTTPException(status_code=401, detail="Invalid Token")

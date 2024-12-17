@@ -74,11 +74,15 @@
         .my-message {
             margin: 10px 0;
             text-align: right;
+            display: flex;
+            justify-content: flex-end;
         }
 
         .other-message {
             margin: 10px 0;
             text-align: left;
+            display: flex;
+            justify-content: flex-start;
         }
 
         .system-message {
@@ -100,11 +104,15 @@
 
         .my-message .message-bubble {
             background-color: #dcf8c6;
+            border-bottom-right-radius: 5px;
             margin-left: auto;
+            color: #000;
         }
 
         .other-message .message-bubble {
             background-color: #f0f0f0;
+            border-bottom-left-radius: 5px;
+            color: #000;
         }
 
         h2 {
@@ -302,6 +310,11 @@
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('chat-section').style.display = 'block';
 
+            console.log('Connecting to WebSocket with:', {
+                username: window.username,
+                tokenLength: accessToken.length
+            });
+
             // Connect to WebSocket with token
             ws = new WebSocket(`ws://127.0.0.1:8000/ws?username=${encodeURIComponent(window.username)}&token=${encodeURIComponent(accessToken)}`);
 
@@ -310,18 +323,25 @@
             };
 
             ws.onmessage = function(event) {
+                console.log('Received message:', event.data);
                 const message = event.data;
                 addMessage(message);
             };
 
             ws.onerror = function(error) {
                 console.error('WebSocket error:', error);
-                // alert('Error connecting to chat. Please try logging in again.');
-                showLogin();
+                alert('Error connecting to chat. Please try logging in again.');
+                document.getElementById('chat-section').style.display = 'none';
+                document.getElementById('login-section').style.display = 'block';
             };
 
-            ws.onclose = function() {
-                console.log('WebSocket connection closed');
+            ws.onclose = function(event) {
+                console.log('WebSocket closed with code:', event.code);
+                if (event.code === 1008) {
+                    alert('Authentication failed. Please login again.');
+                    document.getElementById('chat-section').style.display = 'none';
+                    document.getElementById('login-section').style.display = 'block';
+                }
             };
         }
 
@@ -333,7 +353,7 @@
                 messageInput.value = '';
             }
         }
-
+        
         function addMessage(message) {
             const messagesDiv = document.getElementById('messages');
             const messageElement = document.createElement('div');
@@ -344,17 +364,21 @@
             } else {
                 const [sender, ...messageParts] = message.split(':');
                 const messageText = messageParts.join(':').trim();
+                const cleanSender = sender.trim().replace('🔹', '').replace('🔸', '');
                 
-                if (sender.trim() === username) {
+                if (cleanSender === window.username) {
                     messageElement.className = 'my-message';
+                    const bubble = document.createElement('div');
+                    bubble.className = 'message-bubble';
+                    bubble.textContent = messageText; 
+                    messageElement.appendChild(bubble);
                 } else {
                     messageElement.className = 'other-message';
+                    const bubble = document.createElement('div');
+                    bubble.className = 'message-bubble';
+                    bubble.textContent = `${cleanSender}: ${messageText}`; 
+                    messageElement.appendChild(bubble);
                 }
-                
-                const bubble = document.createElement('div');
-                bubble.className = 'message-bubble';
-                bubble.textContent = `${sender.trim()}: ${messageText}`;
-                messageElement.appendChild(bubble);
             }
 
             messagesDiv.appendChild(messageElement);
