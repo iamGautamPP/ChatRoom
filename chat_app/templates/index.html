@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Chat Room</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .chat-box {
+            width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chat-header {
+            background: #075e54;
+            color: white;
+            padding: 15px;
+            border-radius: 10px 10px 0 0;
+        }
+
+        #messages {
+            height: 400px;
+            padding: 20px;
+            overflow-y: auto;
+            background: white;
+        }
+
+        .input-area {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        .login-container {
+            width: 350px;
+            margin: 100px auto;
+            padding: 25px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #075e54;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #128c7e;
+        }
+
+        .my-message {
+            margin: 10px 0;
+            text-align: right;
+        }
+
+        .other-message {
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        .system-message {
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            display: inline-block;
+            margin: 5px 0;
+            word-wrap: break-word;
+        }
+
+        .my-message .message-bubble {
+            background-color: #dcf8c6;
+            margin-left: auto;
+        }
+
+        .other-message .message-bubble {
+            background-color: #f0f0f0;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .login-container h2 {
+            margin-bottom: 20px;
+            color: #075e54;
+        }
+
+        #messageInput {
+            flex-grow: 1;
+        }
+
+        .form-container {
+            width: 350px;
+            margin: 100px auto;
+            padding: 25px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .password-input {
+            margin-bottom: 20px;
+        }
+
+        .switch-form {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #075e54;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Registration Section -->
+    <div id="register-section" class="form-container">
+        <h2>Register</h2>
+        <input type="text" id="reg-username" class="form-input" placeholder="Username">
+        <input type="email" id="reg-email" class="form-input" placeholder="Email">
+        <input type="password" id="reg-password" class="form-input" placeholder="Password">
+        <button onclick="register()">Register</button>
+        <div class="switch-form" onclick="showLogin()">Already have an account? Login</div>
+    </div>
+
+    <!-- Login Section -->
+    <div id="login-section" class="form-container" style="display: none;">
+        <h2>Login to Chat Room</h2>
+        <input type="text" id="login-username" class="form-input" placeholder="Username">
+        <input type="password" id="login-password" class="form-input password-input" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <div class="switch-form" onclick="showRegister()">New user? Register</div>
+    </div>
+
+    <!-- Chat Section -->
+    <div id="chat-section" class="chat-box" style="display: none;">
+        <div class="chat-header">
+            <h2>Chat Room</h2>
+        </div>
+        <div id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Type a message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Your existing JavaScript code remains the same
+        let ws;
+        let username;
+
+        function showLogin() {
+            document.getElementById('register-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+        }
+
+        function showRegister() {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('register-section').style.display = 'block';
+        }
+
+        async function register() {
+            const username = document.getElementById('reg-username').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value.trim();
+
+            if (!username || !email || !password) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.status === 201) {
+                    alert('Registration successful! Please login.');
+                    showLogin();
+                } else {
+                    alert(data.message || 'Registration failed');
+                }
+            } catch (error) {
+                alert('Error during registration');
+                console.error('Error:', error);
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Successfully logged in
+                    accessToken = data.access_token;
+                    window.username = username;
+                    
+                    // Only join chat if we have a valid token
+                    if (accessToken) {
+                        joinChat();
+                    } else {
+                        console.error('No access token received');
+                        alert('Login failed: No access token received');
+                    }
+                } else {
+                    // Handle error response
+                    console.error('Login failed:', data.detail);
+                    alert(data.detail || 'Login failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                // Don't show alert here, handle the error more gracefully
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'error-message';
+                // errorMessage.textContent = 'Error during login. Please try again.';
+                document.getElementById('login-section').appendChild(errorMessage);
+            }
+        }
+
+        function joinChat() {
+            if (!window.username || !accessToken) {
+                console.error('Missing username or token');
+                return;
+            }
+
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('chat-section').style.display = 'block';
+
+            // Connect to WebSocket with token
+            ws = new WebSocket(`ws://127.0.0.1:8000/ws?username=${encodeURIComponent(window.username)}&token=${encodeURIComponent(accessToken)}`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connection established');
+            };
+
+            ws.onmessage = function(event) {
+                const message = event.data;
+                addMessage(message);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                // alert('Error connecting to chat. Please try logging in again.');
+                showLogin();
+            };
+
+            ws.onclose = function() {
+                console.log('WebSocket connection closed');
+            };
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            if (message && ws) {
+                ws.send(message);
+                messageInput.value = '';
+            }
+        }
+
+        function addMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+
+            if (!message.includes(':')) {
+                messageElement.className = 'system-message';
+                messageElement.textContent = message;
+            } else {
+                const [sender, ...messageParts] = message.split(':');
+                const messageText = messageParts.join(':').trim();
+                
+                if (sender.trim() === username) {
+                    messageElement.className = 'my-message';
+                } else {
+                    messageElement.className = 'other-message';
+                }
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble';
+                bubble.textContent = `${sender.trim()}: ${messageText}`;
+                messageElement.appendChild(bubble);
+            }
+
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
